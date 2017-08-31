@@ -1,34 +1,40 @@
-var training = new Array(500);
+var training = new Array(1000);
 var perceptron;
-
 var count = 0;
 
-var bmin = new Point(-1, -1);
-var bmax = new Point(1, 1);
+var xymin = -1;
+var xymax =  1;
 
-var s;
-var b;
+var trgtx1, trgty1, trgtx2, trgty2;
 
+var m, b;
 function f(x) {
-  var y = s * x + b;
-  return y;
+  return m * x + b;
 }
 
 function setup() {
-  createCanvas(800, 800);
+  createCanvas(window.innerWidth, window.innerHeight);
 
-  s = random(.5);
-  b = random(.5);
+  //Set correct line slope and y-int
+  m = random(-5, 5);
+  b = random(-1, 1);
+
+  //Map correct line to canvas
+  trgtx1 = map(xymin, xymin, xymax, 0, width);
+  trgty1 = map(f(xymin), xymin, xymax, height, 0);
+  trgtx2 = map(xymax, xymin, xymax, 0, width);
+  trgty2 = map(f(xymax), xymin, xymax, height, 0);
 
   perceptron = new Perceptron(3, .01);
+
+  //Add training data
   for (var i = 0; i < training.length; i++) {
-    var x = random(bmin.x, bmax.x);
-    var y = random(bmin.y, bmax.y);
-    var answer = 1;
-    if (y < f(x)) answer = -1;
+    var x = random(xymin, xymax);
+    var y = random(xymin, xymax);
+    var answer = y > f(x) ? 1 : -1;
     training[i] = {
       input: [x, y, 1],
-      output: answer
+      answer: answer
     };
   }
 }
@@ -36,48 +42,56 @@ function setup() {
 function draw() {
   background(255);
 
-  // Draw the line
+  //Correct line
+  stroke(0);
   strokeWeight(1);
-  stroke(0);
+  line(trgtx1, trgty1, trgtx2, trgty2);
 
-  var plotP1 = new Point(bmin.x, f(bmin.x));
-  var plotP2 = new Point(bmax.x, f(bmax.x));
-  plotP1.mapToCanvas(bmin.x, bmax.x, bmin.y, bmax.y);
-  plotP2.mapToCanvas(bmin.x, bmax.x, bmin.y, bmax.y);
-  line(plotP1.x, plotP1.y, plotP2.x, plotP2.y);
-
-  // Draw the line based on the current weights
-  // Formula is weights[0]*x + weights[1]*y + weights[2] = 0
-  stroke(0);
+  //Guess line
   strokeWeight(2);
   var weights = perceptron.weights;
-  var y1 = (-weights[2] - weights[0] * bmin.x) / weights[1];
-  var y2 = (-weights[2] - weights[0] * bmax.x) / weights[1];
-  var weightLineP1 = new Point(bmin.x, y1);
-  var weightLineP2 = new Point(bmax.x, y2);
-  weightLineP1.mapToCanvas(bmin.x, bmax.x, bmin.y, bmax.y);
-  weightLineP2.mapToCanvas(bmin.x, bmax.x, bmin.y, bmax.y);
-  line(weightLineP1.x, weightLineP1.y, weightLineP2.x, weightLineP2.y);
+  var x1 = xymin;
+  var y1 = (-weights[2] - weights[0] * xymin) / weights[1];
+  var x2 = xymax;
+  var y2 = (-weights[2] - weights[0] * xymax) / weights[1];
 
-  // Train the Perceptron with one "training" point at a time
-  perceptron.train(training[count].input, training[count].output);
+  var guessedSlope = (y2 - y1) / (x2 - x1);
+  var guessedYInt  = (y1 + y2) / 2
+
+  x1 = map(x1, xymin, xymax, 0, width);
+  y1 = map(y1, xymin, xymax, height, 0);
+  x2 = map(x2, xymin, xymax, 0, width);
+  y2 = map(y2, xymin, xymax, height, 0);
+
+  line(x1, y1, x2, y2);
+
+  //Update training data
+  perceptron.train(training[count].input, training[count].answer);
   count = (count + 1) % training.length;
 
-  // Draw all the points based on what the Perceptron would "guess"
-  // Does not use the "known" correct answer
   for (var i = 0; i < training.length; i++) {
-    strokeWeight(2);
     fill(0);
-    var guess = perceptron.feedforward(training[i].input);
-    if (guess > 0) noFill();
+    var guess = perceptron.guess(training[i].input);
+    if(guess > 0) noFill();
 
     stroke(255, 0, 0);
-    if(guess == training[i].output) {
+    if(guess == training[i].answer) {
       stroke(0, 255, 0);
     }
 
-    var x = map(training[i].input[0], bmin.x, bmax.x, 0, width);
-    var y = map(training[i].input[1], bmin.y, bmax.y, height, 0);
+    var x = map(training[i].input[0], xymin, xymax, 0, width);
+    var y = map(training[i].input[1], xymin, xymax, height, 0);
     ellipse(x, y, 10, 10);
   }
+
+  noStroke();
+  fill(0, 0, 0, 150);
+  rect(0, height - 185, width, height);
+
+  fill(255);
+  textSize(35);
+  text("Guess Slope = " + guessedSlope,  10, height - 45 * 4, width, 35);
+  text("Actual Slope = " + m,            10, height - 45 * 3, width, 35);
+  text("Guess y-int   = " + guessedYInt, 10, height - 45 * 2, width, 35);
+  text("Actual y-int   = " + b,          10, height - 45 * 1, width, 35);
 }

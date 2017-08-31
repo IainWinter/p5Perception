@@ -84,6 +84,7 @@ function draw() {
     ellipse(x, y, 10, 10);
   }
 
+  //Debug info
   noStroke();
   fill(0, 0, 0, 150);
   rect(0, height - 185, width, height);
